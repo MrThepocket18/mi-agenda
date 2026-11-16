@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<title>Mi Agenda</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Agenda">
+<meta name="theme-color" content="#2b4fd8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: barra superior fija con navegación de mes; debajo, vista Mes (cuadrícula + checklist del día) o vista Resumen (progreso + checklist día a día). */
+:root{
+  --bg:#f5f7fb; --surface:#ffffff; --sunk:#eceff6; --line:#dbe0eb;
+  --fg:#18203a; --muted:#5f6886; --accent:#2b4fd8; --accent-ink:#ffffff; --today:#e8edff;
+  --ok:#14936f; --warn:#c2410c;
+  --c-trabajo:#2b4fd8; --c-personal:#0f9d7a; --c-salud:#d6455d; --c-familia:#c27a06; --c-otro:#7a5bd1;
+  --danger:#c8323f;
+  --f-display:"Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --f-body:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1322; --surface:#171c2f; --sunk:#1f2540; --line:#2b3354;
+  --fg:#e7eaf5; --muted:#99a2c2; --accent:#7f9bff; --accent-ink:#0f1322; --today:#232c55;
+  --ok:#3fcfa6; --warn:#fb923c;
+  --c-trabajo:#7f9bff; --c-personal:#3fcfa6; --c-salud:#ff7d90; --c-familia:#f0b44a; --c-otro:#b39cff;
+  --danger:#ff6b76; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0f1322; --surface:#171c2f; --sunk:#1f2540; --line:#2b3354;
+  --fg:#e7eaf5; --muted:#99a2c2; --accent:#7f9bff; --accent-ink:#0f1322; --today:#232c55;
+  --ok:#3fcfa6; --warn:#fb923c;
+  --c-trabajo:#7f9bff; --c-personal:#3fcfa6; --c-salud:#ff7d90; --c-familia:#f0b44a; --c-otro:#b39cff;
+  --danger:#ff6b76; color-scheme:dark;}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-block:12px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;margin-right:auto}
+.brand i{width:14px;height:14px;border-radius:4px;border:2px solid var(--accent);display:inline-grid;place-items:center;position:relative}
+.brand i::after{content:"";width:5px;height:8px;border:solid var(--accent);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.monthnav{display:flex;align-items:center;gap:6px}
+.monthnav h1{font-family:var(--f-display);font-weight:500;font-size:20px;margin:0;min-width:170px;text-align:center;text-transform:capitalize}
+.icon-btn{border:1px solid var(--line);background:var(--surface);width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-size:18px;line-height:1}
+.icon-btn:hover{background:var(--sunk)}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--danger)}
+.btn.small{padding:4px 9px;font-size:12px}
+.tabs{display:inline-flex;background:var(--sunk);padding:3px;border-radius:9px;gap:2px}
+.tabs button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-weight:500;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgb(0 0 0 / .08)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.status{font-size:12px;color:var(--muted);padding-block:8px 0}
+main{padding-block:16px 40px}
+
+/* Month view */
+.monthview{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.grid{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.dow,.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.dow div{padding:8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.day{min-height:108px;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:3px;background:transparent;text-align:left;min-width:0}
+.day:nth-child(7n){border-right:0}
+.day.out{background:var(--sunk);color:var(--muted)}
+.day:hover{background:var(--today)}
+.day.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.dhead{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.num{font-family:var(--f-mono);font-size:12px;font-weight:500;width:24px;height:24px;display:grid;place-items:center;border-radius:50%}
+.day.is-today .num{background:var(--accent);color:var(--accent-ink)}
+.prog{font-family:var(--f-mono);font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.prog.all{color:var(--ok)}
+.prog.late{color:var(--warn)}
+.chip{font-size:12px;line-height:1.3;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:5px;align-items:center}
+.chip::before{content:"";width:9px;height:9px;flex:none;border-radius:3px;border:1.5px solid var(--cat)}
+.chip.done{color:var(--muted);text-decoration:line-through}
+.chip.done::before{background:var(--cat)}
+.more{font-size:11px;color:var(--muted);padding-left:4px}
+.mbar{display:none;height:4px;width:80%;background:var(--sunk);border-radius:2px;overflow:hidden}
+.mbar span{display:block;height:100%;background:var(--ok)}
+
+.daypanel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 80px)}
+.daypanel h2{font-family:var(--f-display);font-weight:500;font-size:18px;margin:0 0 2px}
+.daypanel .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+.pbar{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden;margin-bottom:14px}
+.pbar span{display:block;height:100%;background:var(--ok);transition:width .25s}
+
+/* Checklist */
+.checklist{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.task{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 2px;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.cb{appearance:none;-webkit-appearance:none;width:22px;height:22px;border:2px solid var(--cat);border-radius:6px;margin:0;display:grid;place-items:center;cursor:pointer;background:var(--surface);flex:none}
+.cb::after{content:"";width:6px;height:11px;border:solid var(--accent-ink);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px);opacity:0}
+.cb:checked{background:var(--cat)}
+.cb:checked::after{opacity:1}
+.tbody{min-width:0;padding-top:1px}
+.ttitle{font-weight:500;overflow-wrap:anywhere;border:0;background:transparent;padding:0;text-align:left;cursor:pointer}
+.task.done .ttitle{text-decoration:line-through;color:var(--muted)}
+.tmeta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.tmeta .cat{color:var(--cat);font-weight:600}
+.edit{border:0;background:transparent;color:var(--muted);font-size:16px;padding:0 4px;line-height:1}
+.edit:hover{color:var(--fg)}
+.quick{display:flex;gap:6px;margin-top:12px}
+.quick input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px}
+.empty{color:var(--muted);font-size:13px;padding:14px;border:1px dashed var(--line);border-radius:8px;text-align:center}
+
+/* Summary view */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.stat .k{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-family:var(--f-display);font-size:28px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:13px;font-weight:500;color:var(--muted);font-family:var(--f-body)}
+.stat .pbar{margin:8px 0 0}
+.bars{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.bar{display:grid;grid-template-columns:66px minmax(0,1fr) 34px;gap:8px;align-items:center;font-size:12px}
+.bar .track{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.bar .fill{display:block;height:100%;background:var(--cat);border-radius:3px}
+.bar .n{text-align:right;font-family:var(--f-mono);color:var(--muted);font-size:11px}
+.late-box{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:var(--r);padding:12px 16px;margin-bottom:20px}
+.late-box .lh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.late-box h3{margin:0;font-size:14px;font-weight:600;color:var(--warn)}
+.sumhead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.sumhead h2{font-family:var(--f-display);font-weight:500;font-size:18px;margin:0}
+.toggles{display:flex;gap:14px;flex-wrap:wrap}
+.toggle{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.daylist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.drow{display:grid;grid-template-columns:130px minmax(0,1fr);gap:16px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.drow:last-child{border-bottom:0}
+.drow.free{padding-block:7px}
+.drow.free .dl{opacity:.55}
+.drow.is-today{background:var(--today)}
+.dl{display:flex;flex-direction:column;gap:2px;padding-top:6px}
+.dl .top{display:flex;align-items:baseline;gap:8px}
+.dl .dn{font-family:var(--f-display);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums;width:30px}
+.dl .dw{font-size:12px;color:var(--muted);text-transform:capitalize}
+.dl .prog{padding-left:38px}
+.freetxt{color:var(--muted);font-size:13px;padding-top:2px}
+.drow .task{padding:6px 0}
+
+/* Dialog */
+dialog{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--surface);color:var(--fg);width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px)}
+dialog::backdrop{background:rgb(10 14 30 / .45)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:14px}
+.dlg h3{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label,.lbl{font-size:12px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.field textarea{resize:vertical;min-height:64px}
+.check{display:flex;align-items:center;gap:8px;font-size:13px}
+.cats{display:flex;flex-wrap:wrap;gap:6px}
+.cats label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:13px;cursor:pointer;position:relative}
+.cats input{position:absolute;opacity:0;pointer-events:none}
+.cats label::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--cat)}
+.cats label:has(input:checked){border-color:var(--cat);background:color-mix(in srgb,var(--cat) 14%,transparent)}
+.cats label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.dlg-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.dlg-foot .spacer{margin-right:auto}
+.confirm{background:var(--sunk);border-radius:8px;padding:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.help{font-size:13px;color:var(--muted)}
+.help ol{margin:6px 0 0;padding-left:18px}
+.icsbox{font-family:var(--f-mono);font-size:11px;height:140px;width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px;white-space:pre;overflow:auto}
+.steps{margin:8px 0 12px;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.steps a{color:var(--accent);font-weight:600}
+code{font-family:var(--f-mono);font-size:12px;background:var(--sunk);padding:1px 4px;border-radius:4px}
+.urlrow{display:flex;gap:6px}
+.urlrow input{flex:1;min-width:0;font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px}
+.errmsg{color:var(--danger);font-size:13px;margin-top:8px}
+#sync-on{display:flex;flex-direction:column;gap:12px}
+/* Notas */
+.notesview{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start}
+.npane-list{display:flex;flex-direction:column;gap:10px;min-width:0}
+.nlist-head{display:flex;gap:8px}
+.nlist-head input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px}
+.notes{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.notes li+li{border-top:1px solid var(--line)}
+.notes .empty{border:0;border-radius:0}
+.nitem{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:0;background:transparent;padding:11px 14px;min-width:0}
+.nitem:hover{background:var(--sunk)}
+.nitem.sel{background:var(--today);box-shadow:inset 3px 0 0 var(--accent)}
+.nitem .nt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nitem .ns{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nitem .nd{color:var(--muted);font-size:11px;font-family:var(--f-mono)}
+.nitem .pin{color:var(--accent);font-weight:600}
+.npane-editor{min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 80px)}
+.neditor{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px}
+.ntools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nsaved{margin-right:auto;font-size:12px;color:var(--muted)}
+.nback{display:none}
+.ntitle{border:0;background:transparent;font-family:var(--f-display);font-weight:700;font-size:24px;padding:4px 0;width:100%;min-width:0}
+.ntitle:focus-visible,.nbody:focus-visible{outline:none}
+.nbody{border:0;background:transparent;resize:vertical;min-height:55vh;width:100%;font-size:15px;line-height:1.6;padding:0}
+.nempty{background:var(--surface)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:8px;font-size:13px;z-index:20}
+
+@media (max-width:760px){
+  .notesview{grid-template-columns:minmax(0,1fr)}
+  .notesview.editing .npane-list{display:none}
+  .notesview:not(.editing) .npane-editor{display:none}
+  .nback{display:inline-block}
+  .nsaved{order:5;width:100%;margin-right:0}
+  #n-pin{margin-left:auto}
+  .npane-editor{position:static}
+}
+@media (max-width:900px){
+  .monthview{grid-template-columns:minmax(0,1fr)}
+  .daypanel{position:static}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .day{min-height:58px;padding:4px;align-items:center}
+  .dhead{flex-direction:column}
+  .chip,.more{display:none}
+  .mbar{display:block}
+  .dow div{text-align:center;padding:6px 2px}
+  .monthnav h1{min-width:0;font-size:18px}
+  .monthnav{order:3;width:100%;justify-content:space-between}
+  .drow{grid-template-columns:minmax(0,1fr);gap:4px}
+  .dl{flex-direction:row;align-items:baseline;gap:10px}
+  .dl .prog{padding-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><i></i>Mi Agenda</div>
+    <div class="tabs" role="tablist">
+      <button id="tab-mes" role="tab" aria-selected="true" data-view="mes">Mes</button>
+      <button id="tab-resumen" role="tab" aria-selected="false" data-view="resumen">Resumen</button>
+      <button id="tab-notas" role="tab" aria-selected="false" data-view="notas">Notas</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-export">Apple Calendar</button>
+      <button class="btn primary" id="btn-new">+ Tarea</button>
+    </div>
+    <div class="monthnav">
+      <button class="icon-btn" id="prev" aria-label="Mes anterior">‹</button>
+      <h1 id="month-title">—</h1>
+      <button class="icon-btn" id="next" aria-label="Mes siguiente">›</button>
+      <button class="btn" id="today">Hoy</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap"><div class="status" id="status">Cargando tu agenda…</div></div>
+
+<main class="wrap">
+  <section id="view-mes" class="monthview">
+    <div class="grid">
+      <div class="dow"><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div></div>
+      <div class="days" id="days"></div>
+    </div>
+    <aside class="daypanel" id="daypanel">
+      <h2 id="dp-title">—</h2>
+      <div class="sub" id="dp-sub"></div>
+      <div class="pbar" id="dp-bar"><span></span></div>
+      <ul class="checklist" id="dp-list"></ul>
+      <form class="quick" id="quick-form">
+        <input id="quick-input" placeholder="Nueva tarea para este día…" maxlength="120" aria-label="Nueva tarea para este día">
+        <button class="btn primary" type="submit">Añadir</button>
+      </form>
+    </aside>
+  </section>
+
+  <section id="view-resumen" hidden>
+    <div class="stats" id="stats"></div>
+    <div id="late"></div>
+    <div class="sumhead">
+      <h2 id="sum-title">Día a día</h2>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="hide-done"> Ocultar hechas</label>
+        <label class="toggle"><input type="checkbox" id="show-free"> Mostrar días libres</label>
+      </div>
+    </div>
+    <div class="daylist" id="daylist"></div>
+  </section>
+
+  <section id="view-notas" class="notesview" hidden>
+    <div class="npane-list">
+      <div class="nlist-head">
+        <input id="n-search" type="search" placeholder="Buscar en notas…" aria-label="Buscar en notas" autocomplete="off">
+        <button class="btn primary" id="n-new">+ Nota</button>
+      </div>
+      <ul class="notes" id="n-list"></ul>
+    </div>
+    <div class="npane-editor">
+      <div class="empty nempty" id="n-empty">Elige una nota de la lista o crea una nueva con «+ Nota».</div>
+      <div class="neditor" id="n-editor" hidden>
+        <div class="ntools">
+          <button class="btn small nback" id="n-back">‹ Notas</button>
+          <span class="nsaved" id="n-saved"></span>
+          <button class="btn small" id="n-pin">Fijar arriba</button>
+          <button class="btn small danger" id="n-del">Borrar</button>
+        </div>
+        <div class="confirm" id="n-del-confirm" hidden>¿Borrar esta nota? <button class="btn danger" id="n-del-yes">Sí, borrar</button><button class="btn" id="n-del-no">Cancelar</button></div>
+        <input id="n-title" class="ntitle" placeholder="Título" maxlength="120" aria-label="Título de la nota">
+        <textarea id="n-body" class="nbody" placeholder="Escribe aquí…" aria-label="Texto de la nota"></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg-ev">
+  <form class="dlg" id="ev-form">
+    <h3 id="ev-heading">Nueva tarea</h3>
+    <div class="field"><label for="f-title">Tarea</label><input id="f-title" required maxlength="120" placeholder="Ej. Llamar al banco, comprar pan…"></div>
+    <div class="field"><label for="f-date">Día</label><input id="f-date" type="date" required></div>
+    <div class="field"><span class="lbl">Categoría</span><div class="cats" id="f-cats"></div></div>
+    <div class="field"><label for="f-notes">Notas</label><textarea id="f-notes" maxlength="1000" placeholder="Opcional"></textarea></div>
+    <label class="check" id="done-row"><input type="checkbox" id="f-done"> Hecha</label>
+    <div class="confirm" id="del-confirm" hidden>¿Borrar esta tarea? <button type="button" class="btn danger" id="del-yes">Sí, borrar</button><button type="button" class="btn" id="del-no">Cancelar</button></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn danger spacer" id="btn-del" hidden>Borrar</button>
+      <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+      <button type="submit" class="btn primary" id="btn-save">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-export">
+  <div class="dlg">
+    <h3>Apple Calendar</h3>
+    <div id="sync-off">
+      <div class="help">Conecta la agenda con GitHub una sola vez. Tus tareas se guardan en un archivo privado de tu cuenta y Apple Calendar se actualiza solo.</div>
+      <ol class="help steps">
+        <li>Abre <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Mi%20Agenda" target="_blank" rel="noopener">este enlace de GitHub</a> (inicia sesión si te lo pide).</li>
+        <li>En «Expiration» elige <b>No expiration</b>, deja marcada solo la casilla <b>gist</b> y pulsa <b>Generate token</b>.</li>
+        <li>Copia el código que empieza por <code>ghp_</code> y pégalo aquí:</li>
+      </ol>
+      <div class="field"><label for="gh-token">Código de acceso de GitHub</label><input id="gh-token" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_…"></div>
+      <div class="errmsg" id="gh-err" hidden></div>
+    </div>
+    <div id="sync-on" hidden>
+      <div class="help">Suscribe tu calendario a esta dirección <b>una sola vez</b>:</div>
+      <div class="urlrow"><input id="sub-url" readonly aria-label="Dirección de suscripción"><button class="btn" id="copy-url">Copiar</button></div>
+      <div class="help">
+        <b>iPhone/iPad:</b> Ajustes → Apps → Calendario → Cuentas de calendario → Añadir cuenta → Otra → <b>Añadir calendario suscrito</b> → pega la dirección → Siguiente → Guardar.<br>
+        <b>Mac:</b> app Calendario → Archivo → <b>Nueva suscripción a calendario…</b> → pega la dirección → en «Actualización automática» elige <b>Cada 5 minutos</b>.
+      </div>
+      <div class="help">Las tareas aparecen como eventos de todo el día; las hechas, con ✓ delante. Los cambios tardan unos minutos en llegar, según la frecuencia de actualización del calendario.</div>
+      <div class="confirm" id="unlink-confirm" hidden>¿Desconectar este dispositivo? Tus tareas siguen guardadas en GitHub. <button class="btn danger" id="unlink-yes">Sí, desconectar</button><button class="btn" id="unlink-no">Cancelar</button></div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn danger spacer" id="btn-unlink" hidden>Desconectar</button>
+      <button class="btn" id="x-close">Cerrar</button>
+      <button class="btn primary" id="gh-connect">Conectar</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const CATS = {trabajo:"Trabajo", personal:"Personal", salud:"Salud", familia:"Familia", otro:"Otro"};
+  const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const WD = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const pad = n => String(n).padStart(2,"0");
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+  const todayStr = () => ymd(new Date());
+  const newId = () => "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  let tasks = [];   // {id,title,date,done,cat,notes,order}
+  let cursor = new Date(); cursor.setDate(1);
+  let selected = todayStr();
+  let view = "mes";
+  let editingId = null;
+  let lastCat = "personal";
+
+  /* ---------- Almacenamiento: este dispositivo + gist secreto de GitHub ---------- */
+  const GH = "https://api.github.com";
+  const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+  const store = {
+    mode: "local", token: null, gistId: null, owner: null, timer: null, pushing: null, dirty: false,
+    readLocal(){ try { return JSON.parse(lsGet("mi-agenda-tareas") || "[]"); } catch { return []; } },
+    writeLocal(list){ lsSet("mi-agenda-tareas", JSON.stringify(list)); },
+    readNotes(){ try { return JSON.parse(lsGet("mi-agenda-notas") || "[]"); } catch { return []; } },
+    writeNotes(list){ lsSet("mi-agenda-notas", JSON.stringify(list)); },
+    async init(onData){
+      this.onData = onData;
+      onData(this.readLocal());
+      this.token = lsGet("mi-agenda-token"); this.gistId = lsGet("mi-agenda-gist");
+      if (this.token) { try { await this.connect(); } catch {} }
+      else setStatus("Guardado solo en este dispositivo · Pulsa «Apple Calendar» para sincronizar");
+    },
+    async api(path, opts = {}){
+      let r;
+      try {
+        r = await fetch(GH + path, {...opts, cache: "no-store", headers: {Authorization: "Bearer " + this.token, Accept: "application/vnd.github+json", ...(opts.body ? {"Content-Type": "application/json"} : {})}});
+      } catch { const e = new Error("Sin conexión a internet"); e.status = 0; throw e; }
+      if (!r.ok) {
+        const e = new Error(r.status === 401 ? "El código de acceso no es válido o ha caducado" :
+          r.status === 403 || r.status === 404 && path === "/gists" ? "El código no tiene permiso de «gist». Crea uno nuevo marcando esa casilla" :
+          r.status === 404 ? "No se encontró la agenda en GitHub" : "GitHub respondió con un error (" + r.status + ")");
+        e.status = r.status; throw e;
+      }
+      return r.json();
+    },
+    async readGist(g, name = "mi-agenda.json"){
+      const f = g.files && g.files[name];
+      if (!f) return [];
+      let txt = f.content;
+      if (f.truncated || txt == null) txt = await (await fetch(f.raw_url, {cache: "no-store"})).text();
+      const data = JSON.parse(txt || "[]");
+      return Array.isArray(data) ? data : [];
+    },
+    async connect(){
+      setStatus("Conectando con GitHub…");
+      try {
+        const known = !!this.gistId;
+        let g = null;
+        if (this.gistId) { try { g = await this.api("/gists/" + this.gistId); } catch (e) { if (e.status !== 404) throw e; } }
+        if (!g) {
+          const list = await this.api("/gists?per_page=100");
+          const hit = list.find(x => x.files && x.files["mi-agenda.json"]);
+          if (hit) g = await this.api("/gists/" + hit.id);
+        }
+        let remote = [], created = false;
+        if (!g) {
+          const local = this.readLocal();
+          g = await this.api("/gists", {method: "POST", body: JSON.stringify({description: "Mi Agenda: tareas y calendario (no borrar)", public: false,
+            files: {"mi-agenda.json": {content: JSON.stringify(local)}, "mi-agenda-notas.json": {content: JSON.stringify(this.readNotes())}, "agenda.ics": {content: buildICS(local)}}})});
+          remote = local; created = true;
+        } else remote = await this.readGist(g);
+        const remoteNotes = created ? this.readNotes() : await this.readGist(g, "mi-agenda-notas.json");
+        this.gistId = g.id; this.owner = g.owner && g.owner.login;
+        lsSet("mi-agenda-gist", this.gistId); lsSet("mi-agenda-owner", this.owner);
+        let list = remote, nlist = remoteNotes, needPush = false;
+        if (!known && !created) {
+          // Primera vez en este dispositivo: une lo que hubiera aquí con lo de GitHub.
+          const ids = new Set(remote.map(x => x.id));
+          const extra = this.readLocal().filter(x => !ids.has(x.id));
+          if (extra.length) { list = remote.concat(extra); needPush = true; }
+          const nids = new Set(remoteNotes.map(x => x.id));
+          const nextra = this.readNotes().filter(x => !nids.has(x.id) && ((x.title || "").trim() || (x.body || "").trim()));
+          if (nextra.length) { nlist = remoteNotes.concat(nextra); needPush = true; }
+        }
+        this.mode = "gist";
+        this.writeLocal(list); this.writeNotes(nlist); setNotes(nlist); this.onData(list);
+        if (needPush) this.schedule(); else setStatus("Sincronizado con GitHub · Apple Calendar se actualiza solo");
+      } catch (e) {
+        this.mode = "local";
+        setStatus("No se pudo sincronizar: " + e.message + ". Los cambios se guardan en este dispositivo.");
+        throw e;
+      }
+    },
+    async pull(){
+      if (this.mode !== "gist" || this.dirty || this.pushing) return;
+      try { const g = await this.api("/gists/" + this.gistId);
+        const list = await this.readGist(g), nlist = await this.readGist(g, "mi-agenda-notas.json"); if (this.dirty) return;
+        this.writeLocal(list); this.writeNotes(nlist); setNotes(nlist); this.onData(list); setStatus("Sincronizado con GitHub · Apple Calendar se actualiza solo"); } catch {}
+    },
+    schedule(){
+      this.dirty = true;
+      if (this.mode !== "gist") return;
+      setStatus("Guardando…");
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.push(), 1200);
+    },
+    async push(){
+      if (this.pushing) { await this.pushing; }
+      this.dirty = false;
+      const list = tasks.slice();
+      const nlist = notes.filter(n => (n.title || "").trim() || (n.body || "").trim() || n.id === curNote);
+      this.pushing = this.api("/gists/" + this.gistId, {method: "PATCH", body: JSON.stringify({files: {
+        "mi-agenda.json": {content: JSON.stringify(list)}, "mi-agenda-notas.json": {content: JSON.stringify(nlist)}, "agenda.ics": {content: buildICS(list)}}})})
+        .then(() => { if (!this.dirty) setStatus("Sincronizado con GitHub · Apple Calendar se actualiza solo"); })
+        .catch(e => { this.dirty = true; setStatus("No se pudo sincronizar: " + e.message + ". Se reintentará al hacer otro cambio o volver a la app."); })
+        .finally(() => { this.pushing = null; });
+      return this.pushing;
+    },
+    flushSoon(){ if (this.dirty && this.mode === "gist") { clearTimeout(this.timer); this.push(); } },
+    subscribeUrl(){ return `webcal://gist.githubusercontent.com/${this.owner}/${this.gistId}/raw/agenda.ics`; },
+    async save(t){
+      const i = tasks.findIndex(x => x.id === t.id);
+      if (i >= 0) tasks[i] = t; else tasks.push(t);
+      this.writeLocal(tasks); render(); this.schedule();
+    },
+    async remove(id){
+      tasks = tasks.filter(x => x.id !== id);
+      this.writeLocal(tasks); render(); this.schedule();
+    },
+    disconnect(){
+      clearTimeout(this.timer); this.mode = "local"; this.token = null;
+      lsSet("mi-agenda-token", null); lsSet("mi-agenda-gist", null); lsSet("mi-agenda-owner", null);
+      setStatus("Desconectado. Guardado solo en este dispositivo.");
+    }
+  };
+  document.addEventListener("visibilitychange", () => { if (document.hidden) store.flushSoon(); else if (store.dirty) store.flushSoon(); else store.pull(); });
+  window.addEventListener("pagehide", () => store.flushSoon());
+  function setStatus(t){ $("#status").textContent = t; }
+  function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => el.hidden = true, 2600); }
+  const fail = err => toast("No se pudo guardar: " + (err?.message || "error"));
+
+  /* ---------- Helpers ---------- */
+  const sortT = (a,b) => (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title);
+  const byDate = () => { const m = {}; for (const t of tasks) (m[t.date] ||= []).push(t); for (const k in m) m[k].sort(sortT); return m; };
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const longDate = s => { const d = parse(s); return `${cap(WD[d.getDay()])}, ${d.getDate()} de ${MONTHS[d.getMonth()]}`; };
+  const monthKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  const doneCount = l => l.filter(t => t.done).length;
+
+  function taskItem(t, showMeta = true){
+    const cat = t.cat || "otro";
+    const meta = [];
+    if (showMeta && t.notes) meta.push(esc(t.notes));
+    return `<li class="task${t.done ? " done" : ""}" style="--cat:var(--c-${cat})">
+      <input type="checkbox" class="cb" data-toggle="${esc(t.id)}" ${t.done ? "checked" : ""} aria-label="Marcar «${esc(t.title)}» como hecha">
+      <div class="tbody"><button class="ttitle" data-edit="${esc(t.id)}">${esc(t.title)}</button>
+        <div class="tmeta"><span class="cat">${CATS[cat]}</span>${meta.length ? " · " + meta.join(" · ") : ""}</div></div>
+      <button class="edit" data-edit="${esc(t.id)}" aria-label="Editar tarea">⋯</button>
+    </li>`;
+  }
+
+  /* ---------- Render ---------- */
+  /* ---------- Notas ---------- */
+  let notes = [], curNote = null;
+  const editingNote = () => ["n-title", "n-body"].includes(document.activeElement && document.activeElement.id);
+  function setNotes(list){ notes = (Array.isArray(list) ? list : []).filter(n => n && n.id); if (view === "notas") renderNotes(editingNote()); }
+  function noteDate(ts){
+    if (!ts) return "";
+    const d = new Date(ts), t = new Date();
+    if (ymd(d) === ymd(t)) return "hoy, " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    return d.getDate() + " " + MONTHS[d.getMonth()].slice(0,3) + (d.getFullYear() !== t.getFullYear() ? " " + d.getFullYear() : "");
+  }
+  const firstLines = b => (b || "").split("\n").map(x => x.trim()).filter(Boolean);
+  function renderNotes(keepEditor){
+    const q = $("#n-search").value.trim().toLowerCase();
+    const list = notes.filter(n => !q || ((n.title || "") + " " + (n.body || "")).toLowerCase().includes(q))
+      .sort((a,b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updated || 0) - (a.updated || 0));
+    $("#n-list").innerHTML = list.length ? list.map(n => {
+      const lines = firstLines(n.body), title = (n.title || "").trim() || lines[0] || "Nota sin título";
+      const snip = ((n.title || "").trim() ? lines[0] : lines[1]) || "Sin texto";
+      return `<li><button class="nitem${n.id === curNote ? " sel" : ""}" data-note="${esc(n.id)}"><span class="nt">${esc(title)}</span><span class="ns">${esc(snip)}</span><span class="nd">${n.pinned ? '<span class="pin">Fijada</span> · ' : ""}${esc(noteDate(n.updated))}</span></button></li>`;
+    }).join("") : `<li class="empty">${q ? "Ninguna nota contiene «" + esc(q) + "»." : "Aún no tienes notas. Pulsa «+ Nota» para escribir la primera."}</li>`;
+    const n = notes.find(x => x.id === curNote);
+    if (!n) curNote = null;
+    $("#n-empty").hidden = !!n; $("#n-editor").hidden = !n;
+    $("#view-notas").classList.toggle("editing", !!n);
+    if (n) {
+      if (!keepEditor) { $("#n-title").value = n.title || ""; $("#n-body").value = n.body || ""; $("#n-del-confirm").hidden = true; }
+      $("#n-pin").textContent = n.pinned ? "Desfijar" : "Fijar arriba";
+      $("#n-saved").textContent = n.updated ? "Guardada · " + noteDate(n.updated) : "";
+    }
+  }
+  function saveNotes(){ store.writeNotes(notes); store.schedule(); }
+  function dropEmptyNote(){
+    const n = notes.find(x => x.id === curNote);
+    if (n && !(n.title || "").trim() && !(n.body || "").trim()) { notes = notes.filter(x => x !== n); curNote = null; saveNotes(); }
+  }
+  function openNote(id){
+    if (id !== curNote) dropEmptyNote();
+    curNote = id; renderNotes(false);
+  }
+  $("#n-new").addEventListener("click", () => {
+    dropEmptyNote();
+    const n = {id: "n" + Date.now().toString(36) + Math.random().toString(36).slice(2,6), title: "", body: "", pinned: false, created: Date.now(), updated: Date.now()};
+    notes.push(n); $("#n-search").value = ""; curNote = n.id; renderNotes(false); store.writeNotes(notes);
+    $("#n-title").focus();
+  });
+  const onNoteInput = () => {
+    const n = notes.find(x => x.id === curNote); if (!n) return;
+    n.title = $("#n-title").value; n.body = $("#n-body").value; n.updated = Date.now();
+    saveNotes(); renderNotes(true);
+  };
+  $("#n-title").addEventListener("input", onNoteInput);
+  $("#n-body").addEventListener("input", onNoteInput);
+  $("#n-title").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#n-body").focus(); } });
+  $("#n-search").addEventListener("input", () => renderNotes(true));
+  $("#n-back").addEventListener("click", () => { dropEmptyNote(); curNote = null; renderNotes(false); });
+  $("#n-pin").addEventListener("click", () => { const n = notes.find(x => x.id === curNote); if (!n) return; n.pinned = !n.pinned; saveNotes(); renderNotes(true); });
+  $("#n-del").addEventListener("click", () => $("#n-del-confirm").hidden = false);
+  $("#n-del-no").addEventListener("click", () => $("#n-del-confirm").hidden = true);
+  $("#n-del-yes").addEventListener("click", () => { notes = notes.filter(x => x.id !== curNote); curNote = null; saveNotes(); renderNotes(false); toast("Nota borrada"); });
+  $("#n-list").addEventListener("click", e => { const b = e.target.closest("[data-note]"); if (b) openNote(b.dataset.note); });
+
+  function render(){
+    if (view === "notas") { renderNotes(editingNote()); return; }
+    $("#month-title").textContent = `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    view === "mes" ? renderMonth() : renderSummary();
+  }
+
+  function renderMonth(){
+    const map = byDate(), t = todayStr();
+    const offset = (cursor.getDay() + 6) % 7;
+    const start = new Date(cursor); start.setDate(1 - offset);
+    const dim = new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+    const cells = Math.ceil((offset + dim) / 7) * 7;
+    let html = "";
+    for (let i = 0; i < cells; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      const k = ymd(d), list = map[k] || [], dn = doneCount(list);
+      const cls = ["day", d.getMonth() !== cursor.getMonth() && "out", k === t && "is-today", k === selected && "sel"].filter(Boolean).join(" ");
+      const pcls = !list.length ? "" : dn === list.length ? " all" : k < t ? " late" : "";
+      const prog = list.length ? `<span class="prog${pcls}">${dn}/${list.length}</span>` : "";
+      const chips = list.slice(0,3).map(x => `<div class="chip${x.done ? " done" : ""}" style="--cat:var(--c-${x.cat||"otro"})">${esc(x.title)}</div>`).join("");
+      const more = list.length > 3 ? `<div class="more">+${list.length-3} más</div>` : "";
+      const mbar = list.length ? `<div class="mbar"><span style="width:${dn/list.length*100}%"></span></div>` : "";
+      html += `<button class="${cls}" data-date="${k}" aria-label="${esc(longDate(k))}: ${dn} de ${list.length} tareas hechas"><span class="dhead"><span class="num">${d.getDate()}</span>${prog}</span>${chips}${more}${mbar}</button>`;
+    }
+    $("#days").innerHTML = html;
+
+    const list = map[selected] || [], dn = doneCount(list);
+    $("#dp-title").textContent = longDate(selected);
+    $("#dp-sub").textContent = (selected === t ? "Hoy · " : "") + (list.length ? `${dn} de ${list.length} hechas` + (dn === list.length ? " · ¡todo listo!" : "") : "Sin tareas");
+    $("#dp-bar").hidden = !list.length;
+    $("#dp-bar span").style.width = list.length ? (dn/list.length*100) + "%" : "0";
+    $("#dp-list").innerHTML = list.length ? list.map(x => taskItem(x)).join("") : `<li class="empty">Nada pendiente. Escribe abajo la primera tarea del día.</li>`;
+  }
+
+  function renderSummary(){
+    const map = byDate(), mk = monthKey(cursor), t = todayStr();
+    const dim = new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+    const mt = tasks.filter(x => x.date.startsWith(mk)), dn = doneCount(mt);
+    const pct = mt.length ? Math.round(dn / mt.length * 100) : 0;
+    const days = Object.keys(map).filter(k => k.startsWith(mk));
+    const fullDays = days.filter(k => doneCount(map[k]) === map[k].length).length;
+    const late = tasks.filter(x => !x.done && x.date < t).sort((a,b) => a.date.localeCompare(b.date));
+    const cats = Object.keys(CATS).map(c => { const l = mt.filter(x => (x.cat||"otro") === c); return [c, l.length, doneCount(l)]; }).filter(x => x[1]);
+
+    $("#stats").innerHTML = `
+      <div class="stat"><div class="k">Hechas este mes</div><div class="v">${dn}<small> / ${mt.length}</small></div><div class="pbar"><span style="width:${pct}%"></span></div></div>
+      <div class="stat"><div class="k">Progreso</div><div class="v">${pct}<small> %</small></div><div class="help" style="font-size:12px">${mt.length - dn} pendientes</div></div>
+      <div class="stat"><div class="k">Días completados</div><div class="v">${fullDays}<small> / ${days.length} con tareas</small></div></div>
+      <div class="stat"><div class="k">Por categoría</div>${cats.length ? `<div class="bars">${cats.map(([c,n,d]) =>
+        `<div class="bar" style="--cat:var(--c-${c})"><span>${CATS[c]}</span><span class="track"><span class="fill" style="width:${d/n*100}%"></span></span><span class="n">${d}/${n}</span></div>`).join("")}</div>` : `<div class="help" style="margin-top:8px">Sin tareas este mes</div>`}</div>`;
+
+    $("#late").innerHTML = late.length ? `<div class="late-box"><div class="lh"><h3>${late.length === 1 ? "1 tarea atrasada" : late.length + " tareas atrasadas"}</h3><button class="btn small" id="move-late">Pasar todas a hoy</button></div>
+      <ul class="checklist">${late.slice(0,8).map(x => taskItem({...x, notes: (x.notes ? x.notes + " · " : "") + "era para el " + parse(x.date).getDate() + " de " + MONTHS[parse(x.date).getMonth()]})).join("")}</ul>${late.length > 8 ? `<div class="help">y ${late.length-8} más…</div>` : ""}</div>` : "";
+
+    $("#sum-title").textContent = `Día a día · ${cap(MONTHS[cursor.getMonth()])}`;
+    const showFree = $("#show-free").checked, hideDone = $("#hide-done").checked;
+    let html = "";
+    for (let d = 1; d <= dim; d++) {
+      const date = new Date(cursor.getFullYear(), cursor.getMonth(), d), k = ymd(date), all = map[k] || [];
+      const list = hideDone ? all.filter(x => !x.done) : all;
+      if (!list.length && !showFree && !(hideDone && all.length)) continue;
+      if (!all.length && !showFree) continue;
+      const dc = doneCount(all);
+      const pcls = !all.length ? "" : dc === all.length ? " all" : k < t ? " late" : "";
+      html += `<div class="drow${all.length ? "" : " free"}${k === t ? " is-today" : ""}">
+        <div class="dl"><span class="top"><span class="dn">${d}</span><span class="dw">${WD[date.getDay()]}${k === t ? " · hoy" : ""}</span></span>${all.length ? `<span class="prog${pcls}">${dc}/${all.length} hechas</span>` : ""}</div>
+        <div>${list.length ? `<ul class="checklist">${list.map(x => taskItem(x, false)).join("")}</ul>` : `<div class="freetxt">${all.length ? "Todo hecho ✓" : "Libre"}</div>`}</div>
+      </div>`;
+    }
+    $("#daylist").innerHTML = html || `<div class="empty" style="margin:16px">No tienes tareas en ${MONTHS[cursor.getMonth()]}. Pulsa «+ Tarea» o ve a la vista Mes y elige un día.</div>`;
+  }
+
+  /* ---------- Acciones ---------- */
+  function toggle(id, done){
+    const t = tasks.find(x => x.id === id); if (!t) return;
+    store.save({...t, done, doneAt: done ? Date.now() : null}).catch(fail);
+    if (done) { const l = tasks.filter(x => x.date === t.date); if (l.every(x => x.done)) toast("¡Día completado!"); }
+  }
+  function addTask(title, date, cat = lastCat, notes = ""){
+    const sameDay = tasks.filter(x => x.date === date);
+    const order = sameDay.length ? Math.max(...sameDay.map(x => x.order ?? 0)) + 1 : 0;
+    return store.save({id:newId(), title, date, done:false, cat, notes, order, created:Date.now()});
+  }
+
+  $("#quick-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("#quick-input").value.trim(); if (!v) return;
+    $("#quick-input").value = "";
+    addTask(v, selected).catch(fail);
+    $("#quick-input").focus();
+  });
+
+  /* ---------- Diálogo de tarea ---------- */
+  $("#f-cats").innerHTML = Object.entries(CATS).map(([k,v]) =>
+    `<label style="--cat:var(--c-${k})"><input type="radio" name="cat" value="${k}" id="f-cat-${k}">${v}</label>`).join("");
+
+  function openEditor(t, date){
+    editingId = t ? t.id : null;
+    $("#ev-heading").textContent = t ? "Editar tarea" : "Nueva tarea";
+    $("#f-title").value = t?.title || "";
+    $("#f-date").value = t?.date || date || selected;
+    $("#f-notes").value = t?.notes || "";
+    $("#f-done").checked = !!t?.done;
+    $("#done-row").hidden = !t;
+    document.getElementById("f-cat-" + (t?.cat || lastCat)).checked = true;
+    $("#btn-del").hidden = !t; $("#del-confirm").hidden = true;
+    $("#dlg-ev").showModal();
+    setTimeout(() => $("#f-title").focus(), 30);
+  }
+  $("#ev-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const title = $("#f-title").value.trim(), date = $("#f-date").value; if (!title || !date) return;
+    const cat = (document.querySelector('input[name="cat"]:checked') || {}).value || "otro";
+    lastCat = cat;
+    const notes = $("#f-notes").value.trim();
+    $("#dlg-ev").close();
+    try {
+      if (editingId) { const t = tasks.find(x => x.id === editingId); const done = $("#f-done").checked;
+        await store.save({...t, title, date, cat, notes, done, doneAt: done ? (t.doneAt || Date.now()) : null}); toast("Tarea actualizada"); }
+      else { await addTask(title, date, cat, notes); toast("Tarea añadida"); }
+      selected = date; const d = parse(date); cursor = new Date(d.getFullYear(), d.getMonth(), 1); render();
+    } catch (err) { fail(err); }
+  });
+  $("#btn-cancel").addEventListener("click", () => $("#dlg-ev").close());
+  $("#btn-del").addEventListener("click", () => $("#del-confirm").hidden = false);
+  $("#del-no").addEventListener("click", () => $("#del-confirm").hidden = true);
+  $("#del-yes").addEventListener("click", () => { const id = editingId; $("#dlg-ev").close(); store.remove(id).then(() => toast("Tarea borrada"), fail); });
+
+  /* ---------- Exportar .ics ---------- */
+  const icsEsc = s => String(s).replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/([,;])/g,"\\$1");
+  const fold = line => { const out = []; let s = line; while (s.length > 73) { out.push(s.slice(0,73)); s = " " + s.slice(73); } out.push(s); return out.join("\r\n"); };
+  const compact = d => d.replace(/-/g,"");
+  function buildICS(list){
+    const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+    const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Mi Agenda//ES","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:Mi Agenda","REFRESH-INTERVAL;VALUE=DURATION:PT15M","X-PUBLISHED-TTL:PT15M"];
+    for (const t of list) {
+      const n = parse(t.date); n.setDate(n.getDate()+1);
+      L.push("BEGIN:VEVENT", `UID:${t.id}@mi-agenda`, `DTSTAMP:${stamp}`, `SUMMARY:${icsEsc((t.done ? "✓ " : "") + t.title)}`,
+        `DTSTART;VALUE=DATE:${compact(t.date)}`, `DTEND;VALUE=DATE:${compact(ymd(n))}`, "TRANSP:TRANSPARENT");
+      if (t.notes) L.push(`DESCRIPTION:${icsEsc(t.notes)}`);
+      L.push(`CATEGORIES:${icsEsc(CATS[t.cat] || "Otro")}`, "END:VEVENT");
+    }
+    L.push("END:VCALENDAR");
+    return L.map(fold).join("\r\n") + "\r\n";
+  }
+
+  /* ---------- Apple Calendar (suscripción) ---------- */
+  function showSync(){
+    const on = store.mode === "gist";
+    $("#sync-off").hidden = on; $("#sync-on").hidden = !on;
+    $("#gh-connect").hidden = on; $("#btn-unlink").hidden = !on; $("#unlink-confirm").hidden = true;
+    $("#gh-err").hidden = true;
+    if (on) $("#sub-url").value = store.subscribeUrl();
+  }
+  $("#btn-export").addEventListener("click", () => { showSync(); $("#dlg-export").showModal(); });
+  $("#x-close").addEventListener("click", () => $("#dlg-export").close());
+  $("#gh-connect").addEventListener("click", async () => {
+    const tok = $("#gh-token").value.trim();
+    if (!/^(ghp_|github_pat_|gho_)[A-Za-z0-9_]{20,}$/.test(tok)) { $("#gh-err").textContent = "Pega el código completo: empieza por ghp_ y es largo."; $("#gh-err").hidden = false; return; }
+    $("#gh-connect").disabled = true; $("#gh-connect").textContent = "Conectando…";
+    store.token = tok; lsSet("mi-agenda-token", tok);
+    try { await store.connect(); $("#gh-token").value = ""; showSync(); toast("Conectado con GitHub"); }
+    catch (e) { lsSet("mi-agenda-token", null); store.token = null; $("#gh-err").textContent = e.message; $("#gh-err").hidden = false; }
+    finally { $("#gh-connect").disabled = false; $("#gh-connect").textContent = "Conectar"; }
+  });
+  $("#copy-url").addEventListener("click", () => {
+    const i = $("#sub-url");
+    if (navigator.clipboard) navigator.clipboard.writeText(i.value).then(() => toast("Dirección copiada"), () => { i.focus(); i.select(); });
+    else { i.focus(); i.select(); }
+  });
+  $("#btn-unlink").addEventListener("click", () => $("#unlink-confirm").hidden = false);
+  $("#unlink-no").addEventListener("click", () => $("#unlink-confirm").hidden = true);
+  $("#unlink-yes").addEventListener("click", () => { store.disconnect(); showSync(); toast("Dispositivo desconectado"); });
+
+  /* ---------- Navegación ---------- */
+  $("#prev").addEventListener("click", () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth()-1, 1); render(); });
+  $("#next").addEventListener("click", () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1); render(); });
+  $("#today").addEventListener("click", () => { const d = new Date(); cursor = new Date(d.getFullYear(), d.getMonth(), 1); selected = todayStr(); render(); });
+  $("#btn-new").addEventListener("click", () => openEditor(null));
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+  function setView(v){
+    if (view === "notas" && v !== "notas") dropEmptyNote();
+    view = v;
+    document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
+    $("#view-mes").hidden = v !== "mes"; $("#view-resumen").hidden = v !== "resumen"; $("#view-notas").hidden = v !== "notas";
+    document.querySelector(".monthnav").hidden = v === "notas";
+    if (location.hash !== "#" + v) history.replaceState(null, "", "#" + v);
+    render();
+  }
+  $("#show-free").addEventListener("change", render);
+  $("#hide-done").addEventListener("change", render);
+  document.addEventListener("change", e => { const id = e.target.dataset?.toggle; if (id) toggle(id, e.target.checked); });
+  document.addEventListener("click", e => {
+    const day = e.target.closest(".day");
+    if (day) { selected = day.dataset.date; const d = parse(selected); if (d.getMonth() !== cursor.getMonth()) cursor = new Date(d.getFullYear(), d.getMonth(), 1); render(); if (matchMedia("(max-width:900px)").matches) $("#daypanel").scrollIntoView({behavior:"smooth", block:"start"}); return; }
+    const ed = e.target.closest("[data-edit]");
+    if (ed) { const t = tasks.find(x => x.id === ed.dataset.edit); if (t) openEditor(t); return; }
+    if (e.target.id === "move-late") {
+      const t = todayStr(), late = tasks.filter(x => !x.done && x.date < t);
+      Promise.all(late.map(x => store.save({...x, date: t}))).then(() => toast(`${late.length} tareas pasadas a hoy`), fail);
+    }
+  });
+  window.addEventListener("hashchange", () => { const v = location.hash.slice(1); if (["mes","resumen","notas"].includes(v)) setView(v); });
+
+  notes = store.readNotes();
+  setView(["resumen","notas"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "mes");
+  store.init(list => { tasks = list.filter(x => x && x.date && x.title); render(); });
+})();
+</script>
+
+</body>
+</html>
